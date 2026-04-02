@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2308080d'/><circle cx='50' cy='50' r='30' fill='none' stroke='%2314b8f6' stroke-width='3'/></svg>">
+<link rel="manifest" href="manifest.json">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400&display=swap');
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -112,6 +113,13 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--ff)
 .toast{position:fixed;top:16px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--bg3);border:1px solid rgba(20,184,246,.15);border-radius:var(--r);padding:10px 18px;font-size:12px;z-index:100;transition:transform .4s cubic-bezier(.16,1,.3,1);box-shadow:0 6px 24px rgba(0,0,0,.4)}
 .toast.show{transform:translateX(-50%) translateY(0)}
 
+/* Paywall */
+#paywall{position:fixed;inset:0;background:rgba(8,8,13,.95);backdrop-filter:blur(10px);z-index:10000;display:none;flex-direction:column;align-items:center;justify-content:center;padding:40px;text-align:center}
+#paywall.on{display:flex}
+.p-tit{font-size:24px;font-weight:600;margin-bottom:16px;color:var(--t1)}
+.p-msg{font-size:15px;color:var(--t2);line-height:1.6;margin-bottom:32px;max-width:280px}
+.p-btn{background:var(--blue);color:var(--bg);padding:14px 32px;border-radius:30px;font-weight:600;font-size:14px;letter-spacing:1px;border:none;cursor:pointer}
+
 /* Notch-safe */
 @supports(padding-top:env(safe-area-inset-top)){
   #s-timer{padding-top:calc(24px + env(safe-area-inset-top))}
@@ -174,7 +182,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--ff)
   <div class="grp">
     <div class="row"><div class="rl">Reset All Data</div><button class="btn rb" id="brdata" style="background:rgba(239,68,68,.1);color:var(--red);width:auto;padding:5px 12px;font-size:11px">Reset</button></div>
   </div>
-  <div class="brand">ContentFlip</div>
+  <div class="brand">ContentFlip &bull; <a href="privacy.html" style="color:inherit;text-decoration:none;opacity:0.6">Privacy</a></div>
 </div>
 
 <!-- NAV -->
@@ -185,6 +193,11 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--ff)
 </nav>
 <div class="toast" id="toast"></div>
 <button id='emergBtn' onclick='toggleLock(true)' style='display:none; position:fixed; bottom:40px; left:50%; transform:translateX(-50%); z-index:9999; padding:12px 24px; background:rgba(220,38,38,0.3); border:1px solid #ef4444; color:white; border-radius:30px; font-family:var(--f-mono); font-size:12px; letter-spacing:1px;'>EMERGENCY EXIT</button>
+<div id="paywall">
+  <div class="p-tit">Trial Period Over</div>
+  <div class="p-msg">Your 7-day trial has ended. Secure lifetime access to the Fractal Focus toolkit for $3.99.</div>
+  <button class="p-btn" onclick="showToast('Secure Checkout Coming Soon!')">UNLOCK FULL ACCESS</button>
+</div>
 </div>
 
 <script>
@@ -228,7 +241,13 @@ function load(){
     const c=localStorage.getItem('ff_c');if(c)cfg={...DEF,...JSON.parse(c)};
     const h=localStorage.getItem('ff_h');if(h)hist=JSON.parse(h);
     const s=localStorage.getItem('ff_s');if(s)st={...st,...JSON.parse(s)};
+    let fv=localStorage.getItem('ff_fv');
+    if(!fv){fv=Date.now();localStorage.setItem('ff_fv',fv)}
+    T.fv=parseInt(fv);
   }catch(e){}
+}
+function isTrialOver(){
+  return (Date.now()-T.fv) > (7*24*60*60*1000);
 }
 function save(){
   try{
@@ -307,6 +326,7 @@ function updIcon(){
 
 // ── Timer Core ──
 function start(){
+  if(isTrialOver()){$('paywall').classList.add('on');return}
   if(T.run)return;T.run=true;
   if(!grid.some(r=>r.some(c=>c)))seedG();
   tsub.textContent=T.phase==='work'?'stay focused':'take it easy';
