@@ -1,33 +1,47 @@
+Downloading gemma-4-E4B-it.litertlm from litert-community/gemma-4-E4B-it-litert-lm...
+```json
 {
+  "id": "./",
   "name": "Fractal Focus: Pomodoro Timer",
   "short_name": "Fractal Focus",
   "description": "A premium Pomodoro-style timer designed by ContentFlip to maximize efficiency, productivity, and deep focus. Using the visual metaphor of the Tree of Life, it provides a high-performance environment for students and professionals to eliminate distractions and build lasting concentration habits. No subscriptions. No ads. Own it forever.",
-  "start_url": "index.html",
+  "start_url": "./",
   "scope": "/fractal-focus/",
   "display": "standalone",
   "background_color": "#08080d",
   "theme_color": "#08080d",
   "orientation": "portrait",
-  "categories": ["productivity", "utilities"],
-  "id": "ff",
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "./icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "./icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "./icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Start Timer",
+      "short_name": "Start",
+      "description": "Start a new focus session",
+      "url": "/start-timer"
     }
   ]
 }
+```
