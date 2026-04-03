@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -22,91 +22,119 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses || true
+
+      - name: Install Android build tools
+        run: sdkmanager "build-tools;34.0.0" "platforms;android-34"
+
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      - name: Create twa-manifest.json
+      - name: Pre-configure Bubblewrap paths (skips interactive download prompt)
         run: |
-          cat > twa-manifest.json << 'EOF'
-          {
-            "packageId": "com.contentflip.fractalfocus",
-            "host": "muddasirayaz.github.io",
-            "name": "Fractal Focus: Pomodoro Timer",
-            "launcherName": "Fractal Focus",
-            "display": "standalone",
-            "themeColor": "#08080d",
-            "themeColorDark": "#08080d",
-            "navigationColor": "#08080d",
-            "navigationColorDark": "#08080d",
-            "navigationDividerColor": "#08080d",
-            "navigationDividerColorDark": "#08080d",
-            "backgroundColor": "#08080d",
-            "enableNotifications": false,
-            "startUrl": "/fractal-focus/index.html",
-            "iconUrl": "https://muddasirayaz.github.io/fractal-focus/icons/icon-512.png",
-            "maskableIconUrl": "https://muddasirayaz.github.io/fractal-focus/icons/icon-512.png",
-            "splashScreenFadeOutDuration": 300,
-            "signingKey": {
-              "path": "./fractalfocus.keystore",
-              "alias": "fractalfocus"
-            },
-            "appVersionCode": 1,
-            "appVersionName": "1.0.0",
-            "shortcuts": [],
-            "generatorApp": "bubblewrap-cli",
-            "webManifestUrl": "https://muddasirayaz.github.io/fractal-focus/manifest.json",
-            "fallbackType": "customtabs",
-            "enableSiteSettingsShortcut": true,
-            "isChromeOSOnly": false,
-            "isMetaQuest": false,
-            "fullScopeUrl": "https://muddasirayaz.github.io/fractal-focus/",
-            "minSdkVersion": 19,
-            "orientation": "portrait",
-            "fingerprints": []
-          }
-          EOF
+          mkdir -p "$HOME/.bubblewrap"
+          echo '{"jdkPath":"'"$JAVA_HOME"'","androidSdkPath":"'"$ANDROID_HOME"'"}' > "$HOME/.bubblewrap/config.json"
+          echo "Bubblewrap config:"
+          cat "$HOME/.bubblewrap/config.json"
 
       - name: Generate signing keystore
         run: |
           keytool -genkeypair \
             -alias fractalfocus \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
+            -keyalg RSA -keysize 2048 -validity 10000 \
             -keystore fractalfocus.keystore \
             -storepass fractalfocus123 \
             -keypass fractalfocus123 \
             -dname "CN=ContentFlip, OU=Apps, O=ContentFlip, L=Buffalo, ST=NY, C=US"
 
-      - name: Initialize Bubblewrap project
-        run: bubblewrap init --manifest="https://muddasirayaz.github.io/fractal-focus/manifest.json" --directory=.
-        env:
-          BUBBLEWRAP_KEYSTORE_PASSWORD: fractalfocus123
-          BUBBLEWRAP_KEY_PASSWORD: fractalfocus123
-
-      - name: Build APK
+      - name: Initialize Bubblewrap (non-interactive)
         run: |
-          echo "fractalfocus123" | bubblewrap build --skipPwaValidation --signingKeyPath=./fractalfocus.keystore --signingKeyAlias=fractalfocus
-        env:
-          BUBBLEWRAP_KEYSTORE_PASSWORD: fractalfocus123
-          BUBBLEWRAP_KEY_PASSWORD: fractalfocus123
+          yes "" | bubblewrap init \
+            --manifest="https://muddasirayaz.github.io/fractal-focus/manifest.json" \
+            --directory=. || true
+          echo "=== Init complete ==="
+          ls -la
 
-      - name: Get signing fingerprint
+      - name: Patch twa-manifest.json
         run: |
-          keytool -list -v -keystore fractalfocus.keystore -alias fractalfocus -storepass fractalfocus123 | grep SHA256
+          node -e "
+            const fs = require('fs');
+            let m = {};
+            try { m = JSON.parse(fs.readFileSync('twa-manifest.json','utf8')); } catch(e) {}
+            m.packageId = 'com.contentflip.fractalfocus';
+            m.host = 'muddasirayaz.github.io';
+            m.name = 'Fractal Focus: Pomodoro Timer';
+            m.launcherName = 'Fractal Focus';
+            m.display = 'standalone';
+            m.themeColor = '#08080d';
+            m.themeColorDark = '#08080d';
+            m.navigationColor = '#08080d';
+            m.navigationColorDark = '#08080d';
+            m.backgroundColor = '#08080d';
+            m.startUrl = '/fractal-focus/index.html';
+            m.orientation = 'portrait';
+            m.signingKey = { path: './fractalfocus.keystore', alias: 'fractalfocus' };
+            m.appVersionCode = 1;
+            m.appVersionName = '1.0.0';
+            m.fullScopeUrl = 'https://muddasirayaz.github.io/fractal-focus/';
+            m.webManifestUrl = 'https://muddasirayaz.github.io/fractal-focus/manifest.json';
+            m.iconUrl = 'https://muddasirayaz.github.io/fractal-focus/icons/icon-512.png';
+            m.maskableIconUrl = 'https://muddasirayaz.github.io/fractal-focus/icons/icon-512.png';
+            m.fallbackType = 'customtabs';
+            m.enableNotifications = false;
+            m.enableSiteSettingsShortcut = true;
+            m.isChromeOSOnly = false;
+            m.isMetaQuest = false;
+            m.minSdkVersion = 19;
+            m.shortcuts = [];
+            m.generatorApp = 'bubblewrap-cli';
+            m.splashScreenFadeOutDuration = 300;
+            fs.writeFileSync('twa-manifest.json', JSON.stringify(m, null, 2));
+            console.log('Patched twa-manifest.json');
+          "
 
-      - name: Upload APK artifact
+      - name: Update project from patched manifest
+        run: |
+          yes "" | bubblewrap update --manifest=. || true
+
+      - name: Build signed APK and AAB
+        run: |
+          echo -e "fractalfocus123\nfractalfocus123" | bubblewrap build \
+            --skipPwaValidation \
+            --signingKeyPath=./fractalfocus.keystore \
+            --signingKeyAlias=fractalfocus
+
+      - name: Show signing fingerprint
+        run: |
+          echo "========================================="
+          echo "  SAVE THIS SHA-256 FINGERPRINT"
+          echo "  You need it for assetlinks.json"
+          echo "========================================="
+          keytool -list -v \
+            -keystore fractalfocus.keystore \
+            -alias fractalfocus \
+            -storepass fractalfocus123 | grep -i sha256 || true
+
+      - name: Find all build outputs
+        run: |
+          echo "=== APK and AAB files ==="
+          find . -name "*.apk" -o -name "*.aab" | head -20
+
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: fractal-focus-android
           path: |
-            app-release-signed.apk
-            app-release-bundle.aab
-            fractalfocus.keystore
+            **/*.apk
+            **/*.aab
           if-no-files-found: warn
 
-      - name: Upload keystore separately
+      - name: Upload keystore (SAVE FOREVER)
         uses: actions/upload-artifact@v4
         with:
-          name: signing-keystore-SAVE-THIS
+          name: KEYSTORE-NEVER-LOSE-THIS
           path: fractalfocus.keystore
