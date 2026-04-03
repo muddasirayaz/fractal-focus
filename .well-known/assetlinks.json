@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "io.github.muddasirayaz.twa",
+    "sha256_cert_fingerprints": ["E6:CB:36:A7:E3:CE:0B:35:84:2A:45:96:C3:97:B3:D0:FC:78:BB:71:05:A6:E4:C6:8D:B4:2F:FB:E2:77:A6:33"]
+  }
+}]
