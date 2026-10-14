@@ -389,7 +389,7 @@ const DEF={work:25,shortBreak:5,longBreak:15,rounds:4,sound:true,vib:true,ab:fal
 let cfg={...DEF};
 let hist=[];
 let st={ts:0,tm:0};
-let T={phase:'work',rem:25*60,tot:25*60,run:false,done:0,iv:null};
+let T={phase:'work',rem:25*60,tot:25*60,ms:25*60*1000,end:0,run:false,done:0,iv:null};
 
 function load(){
   try{
@@ -455,7 +455,7 @@ document.querySelectorAll('.nb').forEach(b=>{
 function setPhase(p){
   T.phase=p;
   const dur=p==='work'?cfg.work:p==='shortBreak'?cfg.shortBreak:cfg.longBreak;
-  T.tot=dur*60;T.rem=dur*60;T.run=false;
+  T.tot=dur*60;T.rem=dur*60;T.ms=dur*60000;T.run=false;
   const brk=p!=='work';
   plbl.textContent=brk?'BREAK':'FOCUS';
   plbl.className='phase-label '+(brk?'b':'w');
@@ -472,19 +472,22 @@ function updIcon(){
 }
 
 // ── Timer (ALWAYS WORKS — no trial gate) ──
+// Remaining time comes from a wall-clock deadline, not from counting ticks: intervals arrive late,
+// keep firing in background tabs, and stop entirely while an iOS web view is suspended.
+function sync(){T.ms=Math.max(0,T.end-Date.now());T.rem=Math.ceil(T.ms/1000)}
 function start(){
-  if(T.run)return;T.run=true;
+  if(T.run)return;T.run=true;T.end=Date.now()+T.ms;
   if(!grid.some(r=>r.some(c=>c)))seedG();
   tsub.textContent=T.phase==='work'?'stay focused':'take it easy';
   updIcon();
   T.iv=setInterval(()=>{
-    T.rem--;
+    sync();
     if(T.rem<=0){clearInterval(T.iv);T.iv=null;T.run=false;updIcon();onDone();return}
     updDisp();drawRing();
   },1000);
 }
 function pause(){
-  if(!T.run)return;T.run=false;clearInterval(T.iv);T.iv=null;
+  if(!T.run)return;sync();T.run=false;clearInterval(T.iv);T.iv=null;updDisp();
   tsub.textContent='paused';updIcon();
 }
 function reset(){pause();setPhase(T.phase)}
@@ -705,13 +708,10 @@ function anim(t){
 }
 
 // ── Visibility ──
-let hidAt=null;
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden&&T.run)hidAt=Date.now();
-  else if(!document.hidden&&hidAt&&T.run){
-    const el=Math.floor((Date.now()-hidAt)/1000);T.rem=Math.max(0,T.rem-el);hidAt=null;
-    updDisp();drawRing();drawFractal();
-    if(T.rem<=0){clearInterval(T.iv);T.iv=null;T.run=false;updIcon();onDone()}}});
+  if(document.hidden||!T.run)return;
+  sync();updDisp();drawRing();drawFractal();
+  if(T.rem<=0){clearInterval(T.iv);T.iv=null;T.run=false;updIcon();onDone()}});
 window.addEventListener('resize',()=>{drawRing();drawFractal()});
 
 // ── Init ──

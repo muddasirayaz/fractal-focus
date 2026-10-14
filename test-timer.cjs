@@ -92,3 +92,27 @@ test('a running session finishes and moves to the break', () => {
   t.click('orb'); t.advance(25 * 60 * 1000 + 1000);
   assert.equal(t.shown(), '05:00');
 });
+
+test('time spent in a background tab counts once, whether or not the interval kept firing', () => {
+  for (const firing of [true, false]) {
+    const t = boot();
+    t.click('orb');
+    t.setHidden(true); t.advance(60000, { firing }); t.setHidden(false);
+    assert.equal(t.shown(), '24:00', `60 s hidden (interval ${firing ? 'firing' : 'suspended'})`);
+  }
+});
+
+test('remaining time follows the wall clock when interval ticks arrive late', () => {
+  const t = boot();
+  t.click('orb');
+  t.advance(30000, { lateBy: 500 });
+  assert.equal(t.shown(), '24:30');
+});
+
+test('running time between ticks is kept across pauses', () => {
+  const t = boot();
+  // Ten runs of 0.6 s, each paused before a tick, then one full second: 7 s of running time.
+  for (let i = 0; i < 10; i++) { t.click('orb'); t.advance(600); t.click('orb'); t.advance(5000); }
+  t.click('orb'); t.advance(1000);
+  assert.equal(t.shown(), '24:53');
+});
